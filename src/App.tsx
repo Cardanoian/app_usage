@@ -51,6 +51,8 @@ function App() {
       right: 1rem;
       opacity: 1;
       cursor: pointer;
+      filter: invert(1);
+      z-index: 10;
     }
   `;
 
