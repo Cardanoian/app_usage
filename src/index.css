@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -113,8 +113,38 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
   body {
-    @apply bg-background text-foreground;
+    font-family: 'Noto Sans KR', sans-serif;
+    background: linear-gradient(135deg, #ff6b9d, #c44569, #f8b500, #ff6b9d);
+    background-size: 400% 400%;
+    animation: gradientMove 8s ease infinite;
+    min-height: 100vh;
+    color: white;
+    overflow-x: hidden;
+  }
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
+  }
+  to {
+    text-shadow: 0 0 40px rgba(255, 107, 157, 0.8);
   }
 }

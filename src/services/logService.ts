@@ -32,29 +32,60 @@ export const getModels = async (appName: string): Promise<string[]> => {
 
 export const getLogData = async (
   appName: string,
-  model: string
+  model: string,
+  startDate: string,
+  endDate: string
 ): Promise<LogData> => {
-  if (appName === '선택' || model === '선택') {
+  if (appName === '선택' || model === '선택' || !startDate || !endDate) {
     return { count: 0, inputLength: 0, outputLength: 0 };
   }
 
-  let query = supabase.from('app_usage').select('input, output');
+  // 날짜 범위: 시작일 0시 0분 0초 ~ 종료일 23시 59분 59초
+  const start = `${startDate}T00:00:00`;
+  const end = `${endDate}T23:59:59.999999`;
+
+  // 1. 전체 count만 별도로 가져오기
+  let countQuery = supabase
+    .from('app_usage')
+    .select('*', { count: 'exact', head: true });
 
   if (appName !== '전체') {
-    query = query.eq('app_name', appName);
+    countQuery = countQuery.eq('app_name', appName);
   }
   if (model !== '전체') {
-    query = query.eq('model', model);
+    countQuery = countQuery.eq('model', model);
+  }
+  countQuery = countQuery.gte('created_at', start).lte('created_at', end);
+
+  const { count, error: countError } = await countQuery;
+
+  if (countError) {
+    console.error('Error fetching log count:', countError);
+    throw new Error('로그 개수를 불러오는 중 오류가 발생했습니다.');
   }
 
-  const { data, error } = await query;
+  // 2. input/output 길이 집계용 데이터는 최대 10000개까지 조회
+  let dataQuery = supabase
+    .from('app_usage')
+    .select('input, output, created_at')
+    .gte('created_at', start)
+    .lte('created_at', end);
 
-  if (error) {
-    console.error('Error fetching log data:', error);
+  if (appName !== '전체') {
+    dataQuery = dataQuery.eq('app_name', appName);
+  }
+  if (model !== '전체') {
+    dataQuery = dataQuery.eq('model', model);
+  }
+  dataQuery = dataQuery.limit(10000);
+
+  const { data, error: dataError } = await dataQuery;
+
+  if (dataError) {
+    console.error('Error fetching log data:', dataError);
     throw new Error('로그 데이터를 불러오는 중 오류가 발생했습니다.');
   }
 
-  const count = data.length;
   const inputLength = data.reduce(
     (acc, item) => acc + (item.input?.length || 0),
     0
@@ -64,5 +95,5 @@ export const getLogData = async (
     0
   );
 
-  return { count, inputLength, outputLength };
+  return { count: count ?? 0, inputLength, outputLength };
 };

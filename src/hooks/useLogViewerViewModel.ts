@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { LogData } from '../services/logService';
-import {
-  getAppNames,
-  getModels,
-  getLogData,
-} from '../services/logService';
+import { getAppNames, getModels, getLogData } from '../services/logService';
 
 export const useLogViewerViewModel = () => {
   const [appNames, setAppNames] = useState<string[]>(['선택', '전체']);
@@ -14,6 +10,17 @@ export const useLogViewerViewModel = () => {
   const [logData, setLogData] = useState<LogData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 날짜 상태 및 핸들러 선언
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+
+  const handleStartDateChange = useCallback((date: string) => {
+    setStartDate(date);
+  }, []);
+  const handleEndDateChange = useCallback((date: string) => {
+    setEndDate(date);
+  }, []);
 
   useEffect(() => {
     const fetchAppNames = async () => {
@@ -53,27 +60,34 @@ export const useLogViewerViewModel = () => {
     setSelectedModel(modelName);
   }, []);
 
-  useEffect(() => {
-    const fetchLogData = async () => {
-      if (selectedApp === '선택' || selectedModel === '선택') {
-        setLogData(null);
-        return;
-      }
+  // 조회 함수 명시적 분리
+  const fetchLogData = useCallback(async () => {
+    if (
+      selectedApp === '선택' ||
+      selectedModel === '선택' ||
+      !startDate ||
+      !endDate
+    ) {
+      setLogData(null);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getLogData(selectedApp, selectedModel);
-        setLogData(data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLogData();
-  }, [selectedApp, selectedModel]);
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLogData(
+        selectedApp,
+        selectedModel,
+        startDate,
+        endDate
+      );
+      setLogData(data);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedApp, selectedModel, startDate, endDate]);
 
   return {
     appNames,
@@ -85,5 +99,11 @@ export const useLogViewerViewModel = () => {
     error,
     handleAppChange,
     handleModelChange,
+    startDate,
+    endDate,
+    handleStartDateChange,
+    handleEndDateChange,
+    fetchLogData,
+    setLogData, // 필요시 외부에서 초기화
   };
 };
