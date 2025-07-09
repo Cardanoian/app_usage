@@ -64,36 +64,56 @@ export const getLogData = async (
     throw new Error('로그 개수를 불러오는 중 오류가 발생했습니다.');
   }
 
-  // 2. input/output 길이 집계용 데이터는 최대 10000개까지 조회
-  let dataQuery = supabase
-    .from('app_usage')
-    .select('input, output, created_at')
-    .gte('created_at', start)
-    .lte('created_at', end);
+  // 2. input/output 길이 집계용 데이터는 페이지네이션을 통해 전체 조회
+  let totalInputLength = 0;
+  let totalOutputLength = 0;
+  let page = 0;
+  const pageSize = 1000; // Supabase의 기본 제한이 1000
 
-  if (appName !== '전체') {
-    dataQuery = dataQuery.eq('app_name', appName);
+  while (true) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    let dataQuery = supabase
+      .from('app_usage')
+      .select('input, output')
+      .gte('created_at', start)
+      .lte('created_at', end)
+      .range(from, to);
+
+    if (appName !== '전체') {
+      dataQuery = dataQuery.eq('app_name', appName);
+    }
+    if (model !== '전체') {
+      dataQuery = dataQuery.eq('model', model);
+    }
+
+    const { data, error: dataError } = await dataQuery;
+
+    if (dataError) {
+      console.error('Error fetching log data:', dataError);
+      throw new Error('로그 데이터를 불러오는 중 오류가 발생했습니다.');
+    }
+
+    if (!data || data.length === 0) {
+      break; // 더 이상 데이터가 없으면 종료
+    }
+
+    totalInputLength += data.reduce(
+      (acc, item) => acc + (item.input?.length || 0),
+      0
+    );
+    totalOutputLength += data.reduce(
+      (acc, item) => acc + (item.output?.length || 0),
+      0
+    );
+
+    page++;
   }
-  if (model !== '전체') {
-    dataQuery = dataQuery.eq('model', model);
-  }
-  dataQuery = dataQuery.limit(10000);
 
-  const { data, error: dataError } = await dataQuery;
-
-  if (dataError) {
-    console.error('Error fetching log data:', dataError);
-    throw new Error('로그 데이터를 불러오는 중 오류가 발생했습니다.');
-  }
-
-  const inputLength = data.reduce(
-    (acc, item) => acc + (item.input?.length || 0),
-    0
-  );
-  const outputLength = data.reduce(
-    (acc, item) => acc + (item.output?.length || 0),
-    0
-  );
-
-  return { count: count ?? 0, inputLength, outputLength };
+  return {
+    count: count ?? 0,
+    inputLength: totalInputLength,
+    outputLength: totalOutputLength,
+  };
 };
